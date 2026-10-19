@@ -1,4 +1,3 @@
-
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -6,13 +5,12 @@ import numpy as np
 import requests
 from bs4 import BeautifulSoup
 import feedparser
-from datetime import datetime, timedelta
+from datetime import datetime
 import plotly.express as px
 import time
 
-# Optional better FII/DII + constituents
 try:
-    from nselib import capital_market, indices
+    from nselib import capital_market
     NSELIB_AVAILABLE = True
 except ImportError:
     NSELIB_AVAILABLE = False
@@ -23,10 +21,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# ------------------------------------------------------------
-# CONFIG / STATIC DATA
-# ------------------------------------------------------------
 
 INDEX_MAP = {
     "^NSEI": "Nifty 50",
@@ -67,13 +61,8 @@ PERIODS = {
     "12M": 252
 }
 
-# ------------------------------------------------------------
-# HELPER FUNCTIONS
-# ------------------------------------------------------------
-
 @st.cache_data(ttl=3600)
 def get_index_returns():
-    """Calculate returns & alpha for all indices vs Nifty 50"""
     results = []
     nifty = yf.Ticker("^NSEI")
     nifty_hist = nifty.history(period="1y")
@@ -119,7 +108,6 @@ def get_index_returns():
 
 @st.cache_data(ttl=3600)
 def get_stock_alpha(symbols, period_days=63):
-    """Alpha of individual stocks vs Nifty 50"""
     nifty = yf.Ticker("^NSEI").history(period="1y")["Close"]
     data = []
     for sym in symbols:
@@ -141,7 +129,6 @@ def get_stock_alpha(symbols, period_days=63):
 
 @st.cache_data(ttl=1800)
 def get_fii_dii():
-    """FII/DII data – prefer nselib"""
     result = {
         "fii_net": None, "dii_net": None,
         "fii_buy": None, "fii_sell": None,
@@ -156,7 +143,6 @@ def get_fii_dii():
             if df is not None and not df.empty:
                 latest = df.iloc[-1]
                 result["date"] = str(latest.get("Date", latest.name))
-                # Try common column names
                 for col in df.columns:
                     col_upper = str(col).upper()
                     if "FII" in col_upper and "NET" in col_upper:
@@ -194,7 +180,6 @@ def get_fii_dii():
 
 @st.cache_data(ttl=3600)
 def get_research_reports(limit=15):
-    """Scrape latest broker research from Moneycontrol"""
     url = "https://www.moneycontrol.com/news/business/stocks/broker-research-report-13.html"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     reports = []
@@ -202,7 +187,6 @@ def get_research_reports(limit=15):
         r = requests.get(url, headers=headers, timeout=12)
         soup = BeautifulSoup(r.content, "lxml")
 
-        # Multiple possible selectors because Moneycontrol changes layout
         items = soup.select("li.clearfix, .article_box, .list_item, h2 a, .news_title, a")
         seen = set()
         for item in items:
@@ -233,7 +217,6 @@ def get_research_reports(limit=15):
 
 @st.cache_data(ttl=900)
 def get_news(feeds, limit=12):
-    """Generic RSS news fetcher"""
     news = []
     for name, url in feeds.items():
         try:
@@ -253,20 +236,13 @@ def get_news(feeds, limit=12):
     return df
 
 
-# ------------------------------------------------------------
-# SIDEBAR
-# ------------------------------------------------------------
 st.sidebar.title("📈 Nifty Alpha Dashboard")
 st.sidebar.markdown("Data refreshes every 15-60 min (cached)")
 st.sidebar.info("Run after market close for clean EOD numbers.\n\nNot investment advice.")
 
-# ------------------------------------------------------------
-# MAIN LAYOUT
-# ------------------------------------------------------------
 st.title("🇮🇳 Nifty 50 Alpha & Market Intelligence")
 st.caption(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M IST')}")
 
-# ========== BLOCK 1: Top 15 Indices generating Alpha ==========
 st.header("1. Top Indices Generating Alpha vs Nifty 50")
 st.markdown("Sorted primarily by **3-Month Alpha**. Shows returns and excess return (Alpha) for 1M / 2M / 3M / 6M / 12M.")
 
@@ -298,7 +274,6 @@ if not alpha_df.empty:
 else:
     st.warning("Could not fetch index data. Check internet / Yahoo Finance.")
 
-# ========== BLOCK 2: Top 5 Alpha Indices → Top 4 Stocks ==========
 st.header("2. Top 5 Alpha Indices – Leading Stocks & Their Alpha")
 
 if not alpha_df.empty:
@@ -314,11 +289,10 @@ if not alpha_df.empty:
             else:
                 st.write("No stock data available")
         else:
-            st.write("Constituent list not configured for this index (add in TOP_STOCKS dict)")
+            st.write("Constituent list not configured for this index")
 else:
     st.info("Waiting for index data...")
 
-# ========== BLOCK 3: Research Reports ==========
 st.header("3. Latest Research Reports (Top 15)")
 st.markdown("Newest broker calls from Moneycontrol.")
 
@@ -332,7 +306,6 @@ else:
 
 st.caption("Tip: For deeper reports check Moneycontrol, ICICI Direct, Motilal Oswal, Emkay, etc. directly.")
 
-# ========== BLOCK 4: Global News ==========
 st.header("4. Global Market News")
 global_feeds = {
     "CNBC": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
@@ -351,7 +324,6 @@ if not global_news.empty:
 else:
     st.info("No global news fetched.")
 
-# ========== BLOCK 5: Domestic News ==========
 st.header("5. Domestic Indian Market News")
 domestic_feeds = {
     "Moneycontrol": "https://www.moneycontrol.com/rss/latestnews.xml",
@@ -370,7 +342,6 @@ if not domestic_news.empty:
 else:
     st.info("No domestic news fetched.")
 
-# ========== BLOCK 6: FII / DII ==========
 st.header("6. FII / DII Activity")
 
 fii = get_fii_dii()
@@ -426,7 +397,6 @@ st.caption(
     "Extend the get_fii_dii() function if needed."
 )
 
-# Footer
 st.markdown("---")
 st.markdown("""
 **Notes**  
