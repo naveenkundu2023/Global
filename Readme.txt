@@ -1,29 +1,15 @@
 # Indian Market Alpha & Intelligence Dashboard
 
-A Streamlit dashboard focused on Nifty 50 alpha generation, sectoral indices, research reports, global & domestic news, and FII/DII flows.
+Streamlit dashboard for Nifty 50 alpha, sectoral indices, research reports, global & domestic news, and FII/DII flows.
 
 ## Features
 
-1. **Top 15 Indices generating Alpha vs Nifty 50**  
-   - 1M / 2M / 3M / 6M / 12M returns + Alpha (excess return)
-
-2. **Top 5 Alpha Indices → Top 4 Stocks**  
-   - Shows the leading stocks inside those indices and their individual Alpha vs Nifty 50
-
-3. **Latest Research Reports** (Top 15, newest first)  
-   - Scraped from Moneycontrol broker research section  
-   - Columns: Stock, Broker, Rating, Target, Date, Horizon hint
-
-4. **Global News**  
-   - CNBC, Bloomberg, Financial Times, Reuters, etc. (via RSS)
-
-5. **Domestic News**  
-   - Moneycontrol, Economic Times, Dalal Street Investment Journal, Zee Business, Business Standard, etc.
-
-6. **FII / DII Dashboard**  
-   - Cash market net, buy/sell figures  
-   - Index futures & options positioning (where available)  
-   - Last 5 sessions summary + Nifty close
+1. Top 15 Indices generating Alpha vs Nifty 50 (1M / 2M / 3M / 6M / 12M)
+2. Top 5 Alpha Indices → their top 4 stocks + Alpha
+3. Latest Research Reports (Top 15)
+4. Global News (CNBC, Bloomberg, FT, etc.)
+5. Domestic News (Moneycontrol, ET, Business Standard, etc.)
+6. FII / DII section
 
 ## Quick Start
 
