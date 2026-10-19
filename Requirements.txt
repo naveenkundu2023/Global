@@ -8,3 +8,13 @@ lxml
 feedparser
 plotly
 nselib
+streamlit
+yfinance
+pandas
+numpy
+requests
+beautifulsoup4
+lxml
+feedparser
+plotly
+nselib
