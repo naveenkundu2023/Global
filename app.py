@@ -1,7 +1,5 @@
 
----
-
-#### 3. `app.py` (main Streamlit code)
+### 3. `app.py` (clean version – copy everything below)
 
 ```python
 import streamlit as st
@@ -33,7 +31,6 @@ st.set_page_config(
 # CONFIG / STATIC DATA
 # ------------------------------------------------------------
 
-# Major NSE indices available on Yahoo Finance (symbol → display name)
 INDEX_MAP = {
     "^NSEI": "Nifty 50",
     "^NSEBANK": "Nifty Bank",
@@ -51,11 +48,9 @@ INDEX_MAP = {
     "^CNXCONSUM": "Nifty Consumption",
     "^CNXSC": "Nifty Smallcap 100",
     "^CNXMIDCAP": "Nifty Midcap 100",
-    "NIFTY_MIDCAP_150.NS": "Nifty Midcap 150",   # fallback style
     "^NSEMDCP50": "Nifty Midcap 50",
 }
 
-# Approximate top constituents for major indices (used when nselib not available)
 TOP_STOCKS = {
     "Nifty Bank": ["HDFCBANK.NS", "ICICIBANK.NS", "SBIN.NS", "KOTAKBANK.NS", "AXISBANK.NS"],
     "Nifty IT": ["TCS.NS", "INFY.NS", "HCLTECH.NS", "TECHM.NS", "WIPRO.NS"],
@@ -64,7 +59,7 @@ TOP_STOCKS = {
     "Nifty FMCG": ["HINDUNILVR.NS", "ITC.NS", "NESTLEIND.NS", "BRITANNIA.NS", "DABUR.NS"],
     "Nifty Metal": ["TATASTEEL.NS", "JSWSTEEL.NS", "HINDALCO.NS", "VEDL.NS", "COALINDIA.NS"],
     "Nifty Energy": ["RELIANCE.NS", "ONGC.NS", "NTPC.NS", "POWERGRID.NS", "BPCL.NS"],
-    "Nifty Financial Services": ["HDFCBANK.NS", "ICICIBANK.NS", "BAJFINANCE.NS", "HDFC.NS", "SBIN.NS"],
+    "Nifty Financial Services": ["HDFCBANK.NS", "ICICIBANK.NS", "BAJFINANCE.NS", "SBIN.NS", "AXISBANK.NS"],
 }
 
 PERIODS = {
@@ -85,12 +80,12 @@ def get_index_returns():
     results = []
     nifty = yf.Ticker("^NSEI")
     nifty_hist = nifty.history(period="1y")
-    
+
     if nifty_hist.empty:
         return pd.DataFrame()
-    
+
     nifty_close = nifty_hist["Close"]
-    
+
     for symbol, name in INDEX_MAP.items():
         if symbol == "^NSEI":
             continue
@@ -99,10 +94,10 @@ def get_index_returns():
             hist = ticker.history(period="1y")
             if hist.empty or len(hist) < 30:
                 continue
-            
+
             close = hist["Close"]
             row = {"Index": name, "Symbol": symbol}
-            
+
             for label, days in PERIODS.items():
                 if len(close) > days and len(nifty_close) > days:
                     idx_ret = (close.iloc[-1] / close.iloc[-days] - 1) * 100
@@ -113,17 +108,17 @@ def get_index_returns():
                 else:
                     row[f"{label} Ret %"] = np.nan
                     row[f"{label} Alpha"] = np.nan
-            
+
             results.append(row)
-            time.sleep(0.2)  # be nice to Yahoo
-        except Exception as e:
+            time.sleep(0.15)
+        except Exception:
             continue
-    
+
     df = pd.DataFrame(results)
     if not df.empty:
-        # Rank by 3M Alpha primarily, then 1M
         df = df.sort_values(by=["3M Alpha", "1M Alpha"], ascending=False)
     return df
+
 
 @st.cache_data(ttl=3600)
 def get_stock_alpha(symbols, period_days=63):
@@ -142,13 +137,14 @@ def get_stock_alpha(symbols, period_days=63):
                     "3M Return %": round(stock_ret, 2),
                     "3M Alpha": round(alpha, 2)
                 })
-        except:
+        except Exception:
             continue
     return pd.DataFrame(data).sort_values("3M Alpha", ascending=False)
 
+
 @st.cache_data(ttl=1800)
 def get_fii_dii():
-    """FII/DII data – prefer nselib, fallback to Moneycontrol scrape"""
+    """FII/DII data – prefer nselib"""
     result = {
         "fii_net": None, "dii_net": None,
         "fii_buy": None, "fii_sell": None,
@@ -156,43 +152,48 @@ def get_fii_dii():
         "last_5_fii": None, "last_5_dii": None,
         "nifty_close": None, "date": None
     }
-    
-    # Try nselib first
+
     if NSELIB_AVAILABLE:
         try:
             df = capital_market.fii_dii_trading_activity()
             if df is not None and not df.empty:
                 latest = df.iloc[-1]
                 result["date"] = str(latest.get("Date", latest.name))
-                result["fii_net"] = latest.get("FII_Net", latest.get("FII Net", None))
-                result["dii_net"] = latest.get("DII_Net", latest.get("DII Net", None))
-                # many versions have Buy/Sell columns
+                # Try common column names
                 for col in df.columns:
-                    if "FII" in col.upper() and "BUY" in col.upper():
+                    col_upper = str(col).upper()
+                    if "FII" in col_upper and "NET" in col_upper:
+                        result["fii_net"] = latest[col]
+                    if "DII" in col_upper and "NET" in col_upper:
+                        result["dii_net"] = latest[col]
+                    if "FII" in col_upper and "BUY" in col_upper:
                         result["fii_buy"] = latest[col]
-                    if "FII" in col.upper() and "SELL" in col.upper():
+                    if "FII" in col_upper and "SELL" in col_upper:
                         result["fii_sell"] = latest[col]
-                    if "DII" in col.upper() and "BUY" in col.upper():
+                    if "DII" in col_upper and "BUY" in col_upper:
                         result["dii_buy"] = latest[col]
-                    if "DII" in col.upper() and "SELL" in col.upper():
+                    if "DII" in col_upper and "SELL" in col_upper:
                         result["dii_sell"] = latest[col]
-                
-                # last 5 sessions
+
                 if len(df) >= 5:
-                    result["last_5_fii"] = df.tail(5)["FII_Net"].sum() if "FII_Net" in df.columns else None
-                    result["last_5_dii"] = df.tail(5)["DII_Net"].sum() if "DII_Net" in df.columns else None
-        except Exception as e:
+                    fii_col = next((c for c in df.columns if "FII" in str(c).upper() and "NET" in str(c).upper()), None)
+                    dii_col = next((c for c in df.columns if "DII" in str(c).upper() and "NET" in str(c).upper()), None)
+                    if fii_col:
+                        result["last_5_fii"] = df.tail(5)[fii_col].sum()
+                    if dii_col:
+                        result["last_5_dii"] = df.tail(5)[dii_col].sum()
+        except Exception:
             pass
-    
-    # Nifty close
+
     try:
         nifty = yf.Ticker("^NSEI").history(period="5d")
         if not nifty.empty:
-            result["nifty_close"] = round(nifty["Close"].iloc[-1], 2)
-    except:
+            result["nifty_close"] = round(float(nifty["Close"].iloc[-1]), 2)
+    except Exception:
         pass
-    
+
     return result
+
 
 @st.cache_data(ttl=3600)
 def get_research_reports(limit=15):
@@ -201,28 +202,37 @@ def get_research_reports(limit=15):
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     reports = []
     try:
-        r = requests.get(url, headers=headers, timeout=10)
+        r = requests.get(url, headers=headers, timeout=12)
         soup = BeautifulSoup(r.content, "lxml")
-        
-        # Moneycontrol structure changes often – this is a resilient attempt
-        items = soup.select("li.clearfix, .article_box, .list_item, h2 a, .news_title")
-        for item in items[:limit*2]:
+
+        # Multiple possible selectors because Moneycontrol changes layout
+        items = soup.select("li.clearfix, .article_box, .list_item, h2 a, .news_title, a")
+        seen = set()
+        for item in items:
             text = item.get_text(strip=True)
-            if len(text) < 20:
+            if len(text) < 25 or text in seen:
                 continue
-            # simple parsing heuristics
-            reports.append({
-                "Headline": text[:120],
-                "Source": "Moneycontrol",
-                "Date": datetime.now().strftime("%Y-%m-%d"),
-                "Link": item.get("href") if item.name == "a" else ""
-            })
+            if any(kw in text.lower() for kw in ["buy", "sell", "hold", "accumulate", "target", "rating"]):
+                seen.add(text)
+                link = item.get("href", "") if item.name == "a" else ""
+                reports.append({
+                    "Headline": text[:140],
+                    "Source": "Moneycontrol",
+                    "Date": datetime.now().strftime("%Y-%m-%d"),
+                    "Link": link
+                })
             if len(reports) >= limit:
                 break
     except Exception as e:
-        reports.append({"Headline": f"Could not fetch live reports ({e})", "Source": "-", "Date": "-", "Link": ""})
-    
+        reports.append({
+            "Headline": f"Could not fetch live reports ({str(e)[:80]})",
+            "Source": "-",
+            "Date": "-",
+            "Link": ""
+        })
+
     return pd.DataFrame(reports[:limit])
+
 
 @st.cache_data(ttl=900)
 def get_news(feeds, limit=12):
@@ -231,19 +241,20 @@ def get_news(feeds, limit=12):
     for name, url in feeds.items():
         try:
             feed = feedparser.parse(url)
-            for entry in feed.entries[:6]:
+            for entry in feed.entries[:5]:
                 news.append({
                     "Source": name,
                     "Title": entry.get("title", ""),
-                    "Published": entry.get("published", "")[:16],
+                    "Published": str(entry.get("published", ""))[:16],
                     "Link": entry.get("link", "")
                 })
-        except:
+        except Exception:
             continue
     df = pd.DataFrame(news)
     if not df.empty:
         df = df.head(limit)
     return df
+
 
 # ------------------------------------------------------------
 # SIDEBAR
@@ -268,21 +279,24 @@ with st.spinner("Fetching index performance..."):
 if not alpha_df.empty:
     display_cols = ["Index"] + [c for c in alpha_df.columns if "Ret" in c or "Alpha" in c]
     top15 = alpha_df[display_cols].head(15).reset_index(drop=True)
-    
-    # color alpha positive/negative
+
     def color_alpha(val):
         if pd.isna(val):
             return ""
         color = "green" if val > 0 else "red"
         return f"color: {color}"
-    
+
     styled = top15.style.map(color_alpha, subset=[c for c in top15.columns if "Alpha" in c])
     st.dataframe(styled, use_container_width=True, height=520)
-    
-    # quick chart of 3M Alpha
-    fig = px.bar(top15.head(10), x="Index", y="3M Alpha",
-                 title="Top 10 Indices – 3 Month Alpha vs Nifty 50",
-                 color="3M Alpha", color_continuous_scale="RdYlGn")
+
+    fig = px.bar(
+        top15.head(10),
+        x="Index",
+        y="3M Alpha",
+        title="Top 10 Indices – 3 Month Alpha vs Nifty 50",
+        color="3M Alpha",
+        color_continuous_scale="RdYlGn"
+    )
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.warning("Could not fetch index data. Check internet / Yahoo Finance.")
@@ -292,7 +306,7 @@ st.header("2. Top 5 Alpha Indices – Leading Stocks & Their Alpha")
 
 if not alpha_df.empty:
     top5_indices = alpha_df.head(5)["Index"].tolist()
-    
+
     for idx_name in top5_indices:
         st.subheader(f"📌 {idx_name}")
         stocks = TOP_STOCKS.get(idx_name, [])
@@ -309,7 +323,7 @@ else:
 
 # ========== BLOCK 3: Research Reports ==========
 st.header("3. Latest Research Reports (Top 15)")
-st.markdown("Newest broker calls from Moneycontrol. Columns show stock, broker, rating/target where parseable.")
+st.markdown("Newest broker calls from Moneycontrol.")
 
 with st.spinner("Scraping research reports..."):
     reports_df = get_research_reports(15)
@@ -367,43 +381,60 @@ fii = get_fii_dii()
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.metric("Nifty 50 Close", f"{fii['nifty_close']:,.2f}" if fii['nifty_close'] else "N/A")
+    st.metric(
+        "Nifty 50 Close",
+        f"{fii['nifty_close']:,.2f}" if fii['nifty_close'] is not None else "N/A"
+    )
 
 with col2:
     fii_val = fii['fii_net']
-    st.metric("FII Net (Cash)", 
-              f"₹{fii_val:,.0f} Cr" if fii_val is not None else "N/A",
-              delta="Net Buyers" if fii_val and fii_val > 0 else "Net Sellers" if fii_val else None)
+    st.metric(
+        "FII Net (Cash)",
+        f"₹{fii_val:,.0f} Cr" if fii_val is not None else "N/A",
+        delta="Net Buyers" if fii_val is not None and fii_val > 0 else ("Net Sellers" if fii_val is not None else None)
+    )
 
 with col3:
     dii_val = fii['dii_net']
-    st.metric("DII Net (Cash)", 
-              f"₹{dii_val:,.0f} Cr" if dii_val is not None else "N/A",
-              delta="Net Buyers" if dii_val and dii_val > 0 else "Net Sellers" if dii_val else None)
+    st.metric(
+        "DII Net (Cash)",
+        f"₹{dii_val:,.0f} Cr" if dii_val is not None else "N/A",
+        delta="Net Buyers" if dii_val is not None and dii_val > 0 else ("Net Sellers" if dii_val is not None else None)
+    )
 
 st.markdown("---")
-st.subheader("Detailed Snapshot (Previous Session style)")
+st.subheader("Detailed Snapshot")
 
-if fii['fii_buy'] is not None:
-    st.write(f"**FII** · Cash market  ₹{fii['fii_net']:,.0f} Cr  "
-             f"{'net buyers' if fii['fii_net']>0 else 'net sellers'} · "
-             f"bought {fii['fii_buy']:,.0f}, sold {fii['fii_sell']:,.0f}")
-if fii['dii_buy'] is not None:
-    st.write(f"**DII** · Cash market  ₹{fii['dii_net']:,.0f} Cr  "
-             f"{'net buyers' if fii['dii_net']>0 else 'net sellers'} · "
-             f"bought {fii['dii_buy']:,.0f}, sold {fii['dii_sell']:,.0f}")
+if fii.get('fii_buy') is not None and fii.get('fii_sell') is not None:
+    st.write(
+        f"**FII** · Cash market  ₹{fii['fii_net']:,.0f} Cr  "
+        f"{'net buyers' if fii['fii_net'] > 0 else 'net sellers'} · "
+        f"bought {fii['fii_buy']:,.0f}, sold {fii['fii_sell']:,.0f}"
+    )
+if fii.get('dii_buy') is not None and fii.get('dii_sell') is not None:
+    st.write(
+        f"**DII** · Cash market  ₹{fii['dii_net']:,.0f} Cr  "
+        f"{'net buyers' if fii['dii_net'] > 0 else 'net sellers'} · "
+        f"bought {fii['dii_buy']:,.0f}, sold {fii['dii_sell']:,.0f}"
+    )
 
-if fii['last_5_fii'] is not None:
-    st.write(f"**Last 5 sessions** · FII net ₹{fii['last_5_fii']:,.0f} Cr · DII ₹{fii['last_5_dii']:,.0f} Cr")
+if fii.get('last_5_fii') is not None:
+    st.write(
+        f"**Last 5 sessions** · FII net ₹{fii['last_5_fii']:,.0f} Cr · "
+        f"DII ₹{fii.get('last_5_dii', 0):,.0f} Cr"
+    )
 
-st.caption("F&O positioning (Index Futures / Options) requires additional NSE participant data which is available via nselib or NSE archives. Extend the `get_fii_dii()` function if needed.")
+st.caption(
+    "F&O positioning (Index Futures / Options) requires additional NSE participant data. "
+    "Extend the get_fii_dii() function if needed."
+)
 
 # Footer
 st.markdown("---")
 st.markdown("""
 **Notes**  
 - Alpha = Index/Stock return − Nifty 50 return over the same period (simple excess return).  
-- Index constituents are approximate static lists; for live weights use `nselib.indices.constituent_stock_list()`.  
+- Index constituents are approximate static lists.  
 - Research & news scraping can break when websites change layout.  
-- Always cross-verify with official NSE / exchange data before trading.
+- Always cross-verify with official NSE data before trading.
 """)
