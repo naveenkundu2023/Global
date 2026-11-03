@@ -1,4 +1,6 @@
-"""Nifty Pro Screener v1.2 - progressive scan, visible UI, sectoral indices tab."""
+"""Nifty Pro Screener v1.2 - progressive scan, visible UI, sectoral indices tab.
+Updated: Broker Recommendations tab - Stock grouped | Last-5-day highlight | Age color gradation | Single 90D table
+"""
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -12,6 +14,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 st.set_page_config(page_title="Nifty Pro Screener", page_icon="📈", layout="wide", initial_sidebar_state="collapsed")
+
 st.markdown("""
 <style>
 .stApp{background:#1c2128;color:#e6edf3;}
@@ -80,23 +83,93 @@ INDEX_CONSTITUENTS = {
 "NIFTY OIL & GAS":["RELIANCE.NS","ONGC.NS","BPCL.NS","IOC.NS","GAIL.NS","PETRONET.NS"],
 "NIFTY CONSUMER DURABLES":["TITAN.NS","HAVELLS.NS","VOLTAS.NS","CROMPTON.NS","VBL.NS"],
 }
+
 SECTOR_MAP={"RELIANCE.NS":"Energy","TCS.NS":"IT","HDFCBANK.NS":"Banking","HAL.NS":"Defence","JSWSTEEL.NS":"Metals","SUNPHARMA.NS":"Pharma"}
-SAMPLE_BROKER_RECS=[
-{"date":"2026-10-20","broker":"Motilal Oswal","symbol":"HDFCBANK.NS","rating":"Buy","target":925},
-{"date":"2026-10-19","broker":"Nuvama","symbol":"ICICIBANK.NS","rating":"Buy","target":1850},
-{"date":"2026-10-19","broker":"Jefferies","symbol":"ULTRACEMCO.NS","rating":"Buy","target":14380},
-{"date":"2026-10-19","broker":"HSBC","symbol":"ULTRACEMCO.NS","rating":"Buy","target":14200},
-{"date":"2026-10-19","broker":"CLSA","symbol":"ULTRACEMCO.NS","rating":"Outperform","target":13000},
-{"date":"2026-10-19","broker":"JP Morgan","symbol":"ULTRACEMCO.NS","rating":"Overweight","target":12900},
-{"date":"2026-10-19","broker":"Kotak","symbol":"ULTRACEMCO.NS","rating":"Sell","target":8900},
-{"date":"2026-10-18","broker":"Goldman Sachs","symbol":"ICICIBANK.NS","rating":"Buy","target":2025},
-{"date":"2026-10-15","broker":"Motilal Oswal","symbol":"SBIN.NS","rating":"Buy","target":1300},
-{"date":"2026-10-12","broker":"Jefferies","symbol":"AXISBANK.NS","rating":"Buy","target":1700},
-{"date":"2026-10-10","broker":"CLSA","symbol":"TCS.NS","rating":"Outperform","target":4800},
-{"date":"2026-09-28","broker":"JP Morgan","symbol":"RELIANCE.NS","rating":"Overweight","target":3200},
-{"date":"2026-09-20","broker":"Nuvama","symbol":"BAJFINANCE.NS","rating":"Buy","target":8500},
-{"date":"2026-08-25","broker":"Kotak","symbol":"LT.NS","rating":"Buy","target":4200},
+
+# ====================== BROKER RECOMMENDATIONS DATA ======================
+# Update this list regularly from Trendlyne / broker reports.
+# horizon: months (default 12). Use >12 for multi-bagger / long-term ideas.
+SAMPLE_BROKER_RECS = [
+    # Recent (early Nov 2026)
+    {"date":"2026-11-03","broker":"Nuvama","symbol":"ITC.NS","rating":"Buy (Upgraded)","target":310,"horizon":12},
+    {"date":"2026-11-03","broker":"Emkay","symbol":"ITC.NS","rating":"Add","target":300,"horizon":12},
+    {"date":"2026-11-03","broker":"DAM Capital","symbol":"ITC.NS","rating":"Buy","target":355,"horizon":12},
+    {"date":"2026-11-03","broker":"Emkay","symbol":"MARICO.NS","rating":"Buy","target":1000,"horizon":12},
+    {"date":"2026-11-03","broker":"Emkay","symbol":"GRANULES.NS","rating":"Buy","target":950,"horizon":12},
+    {"date":"2026-11-02","broker":"Motilal Oswal","symbol":"RELIANCE.NS","rating":"Buy","target":1520,"horizon":12},
+    {"date":"2026-11-02","broker":"Motilal Oswal","symbol":"DIXON.NS","rating":"Buy","target":15900,"horizon":12},
+    {"date":"2026-11-02","broker":"Motilal Oswal","symbol":"JSWSTEEL.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-02","broker":"Motilal Oswal","symbol":"TATAPOWER.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-02","broker":"Motilal Oswal","symbol":"INFY.NS","rating":"Buy","target":1300,"horizon":12},
+    {"date":"2026-11-02","broker":"Religare","symbol":"HCLTECH.NS","rating":"Buy","target":1680,"horizon":12},
+    {"date":"2026-11-02","broker":"Religare","symbol":"BAJFINANCE.NS","rating":"Buy","target":1096,"horizon":12},
+    {"date":"2026-11-02","broker":"Religare","symbol":"KOTAKBANK.NS","rating":"Accumulate","target":518,"horizon":12},
+    {"date":"2026-11-02","broker":"Religare","symbol":"TATAPOWER.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-02","broker":"Systematix","symbol":"UNIONBANK.NS","rating":"Buy","target":205,"horizon":12},
+    {"date":"2026-11-02","broker":"SMC Global","symbol":"WIPRO.NS","rating":"Buy","target":225,"horizon":12},
+    {"date":"2026-11-01","broker":"JM Financial","symbol":"LT.NS","rating":"Buy","target":4510,"horizon":12},
+    {"date":"2026-11-01","broker":"Geojit BNP Paribas","symbol":"LT.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-01","broker":"SMIFS","symbol":"LT.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-01","broker":"Geojit BNP Paribas","symbol":"TVSMOTOR.NS","rating":"Buy","target":4233,"horizon":12},
+    {"date":"2026-11-01","broker":"BOB Capital Markets","symbol":"SUNPHARMA.NS","rating":"Buy","target":2109,"horizon":12},
+    {"date":"2026-11-01","broker":"ICICI Direct","symbol":"KOTAKBANK.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-01","broker":"ICICI Direct","symbol":"ICICIBANK.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-01","broker":"Motilal Oswal","symbol":"ADANIPORTS.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-01","broker":"Geojit BNP Paribas","symbol":"ADANIPORTS.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-01","broker":"Axis Direct","symbol":"AUROPHARMA.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-01","broker":"Axis Direct","symbol":"HAL.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-01","broker":"Axis Direct","symbol":"TECHM.NS","rating":"Buy","target":2150,"horizon":12},
+    {"date":"2026-11-01","broker":"Multiple (Diwali)","symbol":"ZOMATO.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-01","broker":"Multiple (Diwali)","symbol":"TATASTEEL.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-01","broker":"Multiple (Diwali)","symbol":"BHARTIARTL.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-01","broker":"Multiple (Diwali)","symbol":"SBIN.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-01","broker":"Multiple (Diwali)","symbol":"HDFCBANK.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-11-01","broker":"Multiple (Diwali)","symbol":"BEL.NS","rating":"Buy","target":None,"horizon":12},
+    # Mid October
+    {"date":"2026-10-29","broker":"Emkay","symbol":"TVSMOTOR.NS","rating":"Buy","target":4200,"horizon":12},
+    {"date":"2026-10-29","broker":"Motilal Oswal","symbol":"TVSMOTOR.NS","rating":"Buy","target":4159,"horizon":12},
+    {"date":"2026-10-28","broker":"Motilal Oswal","symbol":"LT.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-10-28","broker":"Motilal Oswal","symbol":"KOTAKBANK.NS","rating":"Buy","target":500,"horizon":12},
+    {"date":"2026-10-28","broker":"Motilal Oswal","symbol":"ICICIBANK.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-10-27","broker":"Axis Direct","symbol":"ASHOKLEY.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-10-27","broker":"Axis Direct","symbol":"APLAPOLLO.NS","rating":"Buy","target":2340,"horizon":12},
+    {"date":"2026-10-27","broker":"Axis Direct","symbol":"ZOMATO.NS","rating":"Buy","target":365,"horizon":12},
+    {"date":"2026-10-21","broker":"Joindre Capital","symbol":"ASHOKLEY.NS","rating":"Buy","target":184,"horizon":12},
+    {"date":"2026-10-21","broker":"Axis Direct","symbol":"PERSISTENT.NS","rating":"Buy","target":6615,"horizon":12},
+    {"date":"2026-10-19","broker":"Nuvama","symbol":"ICICIBANK.NS","rating":"Buy","target":1850,"horizon":12},
+    {"date":"2026-10-19","broker":"Jefferies","symbol":"ULTRACEMCO.NS","rating":"Buy","target":14380,"horizon":12},
+    {"date":"2026-10-19","broker":"HSBC","symbol":"ULTRACEMCO.NS","rating":"Buy","target":14200,"horizon":12},
+    {"date":"2026-10-19","broker":"CLSA","symbol":"ULTRACEMCO.NS","rating":"Outperform","target":13000,"horizon":12},
+    {"date":"2026-10-19","broker":"JP Morgan","symbol":"ULTRACEMCO.NS","rating":"Overweight","target":12900,"horizon":12},
+    {"date":"2026-10-19","broker":"Kotak","symbol":"ULTRACEMCO.NS","rating":"Sell","target":8900,"horizon":12},
+    {"date":"2026-10-18","broker":"Goldman Sachs","symbol":"ICICIBANK.NS","rating":"Buy","target":2025,"horizon":12},
+    {"date":"2026-10-15","broker":"Motilal Oswal","symbol":"SBIN.NS","rating":"Buy","target":1300,"horizon":12},
+    {"date":"2026-10-15","broker":"Motilal Oswal","symbol":"AUROPHARMA.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-10-13","broker":"ICICI Direct","symbol":"BAJFINANCE.NS","rating":"Buy","target":1180,"horizon":12},
+    {"date":"2026-10-13","broker":"ICICI Direct","symbol":"BANKBARODA.NS","rating":"Buy","target":340,"horizon":12},
+    {"date":"2026-10-12","broker":"Jefferies","symbol":"AXISBANK.NS","rating":"Buy","target":1700,"horizon":12},
+    {"date":"2026-10-10","broker":"CLSA","symbol":"TCS.NS","rating":"Outperform","target":4800,"horizon":12},
+    # Older (still within ~90d)
+    {"date":"2026-09-28","broker":"JP Morgan","symbol":"RELIANCE.NS","rating":"Overweight","target":3200,"horizon":12},
+    {"date":"2026-09-21","broker":"Motilal Oswal","symbol":"TATASTEEL.NS","rating":"Buy","target":220,"horizon":12},
+    {"date":"2026-09-21","broker":"Motilal Oswal","symbol":"SOLARINDS.NS","rating":"Buy","target":23000,"horizon":12},
+    {"date":"2026-09-20","broker":"Nuvama","symbol":"BAJFINANCE.NS","rating":"Buy","target":8500,"horizon":12},
+    {"date":"2026-09-08","broker":"Jefferies","symbol":"SOLARINDS.NS","rating":"Buy","target":None,"horizon":12},
+    {"date":"2026-08-25","broker":"Kotak","symbol":"LT.NS","rating":"Buy","target":4200,"horizon":12},
 ]
+
+def age_color(days: int) -> str:
+    """Return CSS for age-based highlighting"""
+    if days <= 5:
+        return "background-color: #14532d; color: #86efac; font-weight: 700;"   # Fresh bright green
+    elif days <= 15:
+        return "background-color: #1e3a2f; color: #bbf7d0;"
+    elif days <= 30:
+        return "background-color: #1e293b; color: #e2e8f0;"
+    elif days <= 60:
+        return "background-color: #1c1917; color: #a8a29e;"
+    else:
+        return "background-color: #0f172a; color: #64748b;"
 
 @st.cache_data(ttl=3600,show_spinner=False)
 def get_nifty_data(period="1y"):
@@ -260,7 +333,8 @@ for k,v in [("ath_offset",0),("ath_results",[]),("db_offset",0),("db_results",[]
     if k not in st.session_state: st.session_state[k]=v
 
 st.title("Nifty Pro Screener v1.2")
-st.caption(f"Universe: {len(NIFTY_UNIVERSE)} | Progressive scan | Boxed tabs | Blue buttons | 5 tabs")
+st.caption(f"Universe: {len(NIFTY_UNIVERSE)} | Progressive scan | Boxed tabs | Blue buttons | 5 tabs | Broker tab updated")
+
 tab1,tab2,tab3,tab4,tab5=st.tabs(["ATH / Multi-Year Highs","Double Bottom","Broker Recommendations","A/D + Analytics","Sectoral Indices (NSE)"])
 
 with tab1:
@@ -336,18 +410,96 @@ with tab2:
                 fig.update_layout(template="plotly_dark",height=460,paper_bgcolor="#1c2128",plot_bgcolor="#0d1117",xaxis_rangeslider_visible=False,font=dict(color="#e6edf3"))
                 st.plotly_chart(fig,use_container_width=True)
 
+# ====================== TAB 3: BROKER RECOMMENDATIONS (UPDATED) ======================
 with tab3:
-    st.subheader("Broker Recommendations")
-    recs=pd.DataFrame(SAMPLE_BROKER_RECS); recs["date"]=pd.to_datetime(recs["date"])
-    prices={s:get_live_price(s) for s in recs["symbol"].unique()}
-    recs["current_price"]=recs["symbol"].map(prices)
-    recs["upside_%"]=np.where(recs["current_price"]>0,(recs["target"]/recs["current_price"]-1)*100,np.nan)
-    today=pd.Timestamp(datetime.now().date())
-    for label,days in [("30d",30),("60d",60),("90d",90),("All",9999)]:
-        with st.expander(f"Last {label}",expanded=(label=="30d")):
-            sub=recs[recs["date"]>=today-timedelta(days=days)]
-            if sub.empty: st.write("No data")
-            else: st.dataframe(sub[["date","broker","symbol","rating","target","current_price","upside_%"]].sort_values("date",ascending=False),use_container_width=True,hide_index=True)
+    st.subheader("Broker Recommendations — Stock Grouped View")
+    
+    st.markdown("""
+    **Presentation Rules**  
+    - Grouped by **Stock** → Brokers sorted by most recent date first  
+    - **Last 5 days** highlighted in bright green  
+    - Color fades as recommendation ages (green → neutral → muted)  
+    - Single consolidated table for last **90 days** (no separate 30d/60d expanders)  
+    - Separate section for longer-horizon / multi-bagger ideas (horizon > 12 months)  
+    """)
+    
+    # Prepare data
+    recs = pd.DataFrame(SAMPLE_BROKER_RECS)
+    recs["date"] = pd.to_datetime(recs["date"])
+    today = pd.Timestamp(datetime.now().date())
+    recs["age_days"] = (today - recs["date"]).dt.days
+    recs["horizon"] = recs.get("horizon", 12).fillna(12).astype(int)
+    
+    # Live prices + upside
+    unique_symbols = recs["symbol"].unique().tolist()
+    prices = {s: get_live_price(s) for s in unique_symbols}
+    recs["current_price"] = recs["symbol"].map(prices)
+    recs["upside_%"] = np.where(
+        (recs["current_price"] > 0) & (recs["target"].notna()),
+        (recs["target"] / recs["current_price"] - 1) * 100,
+        np.nan
+    )
+    
+    # Split: last 90 days vs longer horizon
+    mask_90d = (recs["age_days"] <= 90) & (recs["horizon"] <= 12)
+    mask_long = recs["horizon"] > 12
+    
+    df90 = recs[mask_90d].copy()
+    df_long = recs[mask_long].copy()
+    
+    # Sort: Symbol then most recent date first
+    df90 = df90.sort_values(["symbol", "date"], ascending=[True, False])
+    
+    # Clean display columns
+    df90_show = df90[["date","broker","symbol","rating","target","current_price","upside_%","age_days","horizon"]].copy()
+    df90_show["date"] = df90_show["date"].dt.strftime("%Y-%m-%d")
+    df90_show["symbol"] = df90_show["symbol"].str.replace(".NS","")
+    
+    def style_age(row):
+        styles = [""] * len(row)
+        age = row["age_days"]
+        base = age_color(int(age) if pd.notna(age) else 999)
+        for i in range(len(row)):
+            styles[i] = base
+        return styles
+    
+    st.markdown("#### Consolidated Broker Calls — Last 90 Days (Stock Grouped)")
+    st.caption("Bright green = last 5 days | Color fades with age | Sorted by stock → latest date first")
+    
+    if not df90_show.empty:
+        styled = df90_show.style.apply(style_age, axis=1).format({
+            "target": "{:.0f}",
+            "current_price": "{:.1f}",
+            "upside_%": "{:.1f}",
+            "age_days": "{:.0f}",
+            "horizon": "{:.0f}"
+        }, na_rep="—")
+        st.dataframe(styled, use_container_width=True, height=480, hide_index=True)
+        
+        # Fresh calls (last 5 days)
+        last5 = df90_show[df90_show["age_days"] <= 5]
+        if not last5.empty:
+            st.markdown("#### 🔥 Fresh Calls (Last 5 Days)")
+            st.dataframe(
+                last5.style.apply(lambda r: ["background-color: #14532d; color: #86efac; font-weight:700"]*len(r), axis=1)
+                .format({"target":"{:.0f}","current_price":"{:.1f}","upside_%":"{:.1f}","age_days":"{:.0f}"}, na_rep="—"),
+                use_container_width=True, hide_index=True
+            )
+    else:
+        st.info("No recommendations within last 90 days.")
+    
+    # Longer horizon section
+    st.markdown("#### Longer Horizon / Multi-bagger Ideas (Horizon > 12 months)")
+    if not df_long.empty:
+        df_long_show = df_long[["date","broker","symbol","rating","target","current_price","upside_%","horizon"]].copy()
+        df_long_show["date"] = df_long_show["date"].dt.strftime("%Y-%m-%d")
+        df_long_show["symbol"] = df_long_show["symbol"].str.replace(".NS","")
+        st.dataframe(df_long_show, use_container_width=True, hide_index=True)
+    else:
+        st.info("No multi-bagger / >12-month horizon recommendations currently loaded. Add them to SAMPLE_BROKER_RECS with horizon > 12.")
+    
+    st.markdown("---")
+    st.caption("Update SAMPLE_BROKER_RECS regularly from Trendlyne / broker reports. Age coloring and last-5-day highlight are automatic.")
 
 with tab4:
     st.subheader("A/D + Zones + Pivots + Options + Trade Ideas")
@@ -449,4 +601,5 @@ with tab5:
                 for _,r in bulls.iterrows():
                     st.markdown(f"- **{r['ticker']}** @ {r['price']} — {badge_html('green','BULLISH')} conf {r['confidence']} | RS {r['rs_vs_nifty']}",unsafe_allow_html=True)
 
-st.markdown("---"); st.caption("v1.2 • Progressive scan • Educational only")
+st.markdown("---")
+st.caption("v1.2 • Progressive scan • Broker tab: Stock-grouped + Age coloring + Last-5-day highlight • Educational only")
