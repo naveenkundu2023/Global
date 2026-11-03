@@ -159,17 +159,22 @@ SAMPLE_BROKER_RECS = [
 ]
 
 def age_color(days: int) -> str:
-    """Return CSS for age-based highlighting"""
+    """Return CSS for age-based highlighting - lighter readable shades"""
     if days <= 5:
-        return "background-color: #14532d; color: #86efac; font-weight: 700;"   # Fresh bright green
+        # Fresh (last 5 days) - bright light green
+        return "background-color: #dcfce7; color: #14532d; font-weight: 700;"
     elif days <= 15:
-        return "background-color: #1e3a2f; color: #bbf7d0;"
+        # Very recent - soft green
+        return "background-color: #bbf7d0; color: #166534; font-weight: 600;"
     elif days <= 30:
-        return "background-color: #1e293b; color: #e2e8f0;"
+        # Recent - light teal/gray-green
+        return "background-color: #e0f2fe; color: #0c4a6e;"
     elif days <= 60:
-        return "background-color: #1c1917; color: #a8a29e;"
+        # Medium age - soft amber/cream
+        return "background-color: #fef3c7; color: #92400e;"
     else:
-        return "background-color: #0f172a; color: #64748b;"
+        # Older - light neutral gray
+        return "background-color: #f1f5f9; color: #334155;"
 
 @st.cache_data(ttl=3600,show_spinner=False)
 def get_nifty_data(period="1y"):
@@ -481,7 +486,7 @@ with tab3:
         if not last5.empty:
             st.markdown("#### 🔥 Fresh Calls (Last 5 Days)")
             st.dataframe(
-                last5.style.apply(lambda r: ["background-color: #14532d; color: #86efac; font-weight:700"]*len(r), axis=1)
+                last5.style.apply(lambda r: ["background-color: #dcfce7; color: #14532d; font-weight:700"]*len(r), axis=1)
                 .format({"target":"{:.0f}","current_price":"{:.1f}","upside_%":"{:.1f}","age_days":"{:.0f}"}, na_rep="—"),
                 use_container_width=True, hide_index=True
             )
