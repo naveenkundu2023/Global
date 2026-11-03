@@ -455,39 +455,61 @@ with tab3:
     # Sort: Symbol then most recent date first
     df90 = df90.sort_values(["symbol", "date"], ascending=[True, False])
     
-    # Clean display columns
+    # Clean display columns with clear labels and formatting
     df90_show = df90[["date","broker","symbol","rating","target","current_price","upside_%","age_days","horizon"]].copy()
     df90_show["date"] = df90_show["date"].dt.strftime("%Y-%m-%d")
     df90_show["symbol"] = df90_show["symbol"].str.replace(".NS","")
     
+    # Make horizon human-readable
+    df90_show["Horizon"] = df90_show["horizon"].apply(lambda x: f"{int(x)} months" if pd.notna(x) else "—")
+    
+    # Round numbers cleanly
+    df90_show["current_price"] = df90_show["current_price"].round(1)
+    df90_show["upside_%"] = df90_show["upside_%"].round(1)
+    df90_show["target"] = df90_show["target"].apply(lambda x: round(x) if pd.notna(x) else None)
+    
+    # Rename columns for clarity
+    df90_show = df90_show.rename(columns={
+        "date": "Date",
+        "broker": "Broker",
+        "symbol": "Stock",
+        "rating": "Rating",
+        "target": "Target",
+        "current_price": "CMP",
+        "upside_%": "Upside %",
+        "age_days": "Age (days)"
+    })
+    
+    # Final column order
+    df90_show = df90_show[["Stock", "Date", "Broker", "Rating", "Target", "CMP", "Upside %", "Age (days)", "Horizon"]]
+    
     def style_age(row):
         styles = [""] * len(row)
-        age = row["age_days"]
+        age = row["Age (days)"]
         base = age_color(int(age) if pd.notna(age) else 999)
         for i in range(len(row)):
             styles[i] = base
         return styles
     
     st.markdown("#### Consolidated Broker Calls — Last 90 Days (Stock Grouped)")
-    st.caption("Bright green = last 5 days | Color fades with age | Sorted by stock → latest date first")
+    st.caption("Bright green = last 5 days | Color fades with age | Sorted by stock → latest date first | Target & Upside shown only when broker has given a target")
     
     if not df90_show.empty:
         styled = df90_show.style.apply(style_age, axis=1).format({
-            "target": "{:.0f}",
-            "current_price": "{:.1f}",
-            "upside_%": "{:.1f}",
-            "age_days": "{:.0f}",
-            "horizon": "{:.0f}"
+            "Target": "{:.0f}",
+            "CMP": "{:.1f}",
+            "Upside %": "{:.1f}",
+            "Age (days)": "{:.0f}"
         }, na_rep="—")
         st.dataframe(styled, use_container_width=True, height=480, hide_index=True)
         
         # Fresh calls (last 5 days)
-        last5 = df90_show[df90_show["age_days"] <= 5]
+        last5 = df90_show[df90_show["Age (days)"] <= 5]
         if not last5.empty:
             st.markdown("#### 🔥 Fresh Calls (Last 5 Days)")
             st.dataframe(
                 last5.style.apply(lambda r: ["background-color: #dcfce7; color: #14532d; font-weight:700"]*len(r), axis=1)
-                .format({"target":"{:.0f}","current_price":"{:.1f}","upside_%":"{:.1f}","age_days":"{:.0f}"}, na_rep="—"),
+                .format({"Target":"{:.0f}","CMP":"{:.1f}","Upside %":"{:.1f}","Age (days)":"{:.0f}"}, na_rep="—"),
                 use_container_width=True, hide_index=True
             )
     else:
@@ -499,7 +521,16 @@ with tab3:
         df_long_show = df_long[["date","broker","symbol","rating","target","current_price","upside_%","horizon"]].copy()
         df_long_show["date"] = df_long_show["date"].dt.strftime("%Y-%m-%d")
         df_long_show["symbol"] = df_long_show["symbol"].str.replace(".NS","")
-        st.dataframe(df_long_show, use_container_width=True, hide_index=True)
+        df_long_show["Horizon"] = df_long_show["horizon"].apply(lambda x: f"{int(x)} months" if pd.notna(x) else "—")
+        df_long_show["current_price"] = df_long_show["current_price"].round(1)
+        df_long_show["upside_%"] = df_long_show["upside_%"].round(1)
+        df_long_show = df_long_show.rename(columns={
+            "date": "Date", "broker": "Broker", "symbol": "Stock", "rating": "Rating",
+            "target": "Target", "current_price": "CMP", "upside_%": "Upside %"
+        })
+        df_long_show = df_long_show[["Stock", "Date", "Broker", "Rating", "Target", "CMP", "Upside %", "Horizon"]]
+        st.dataframe(df_long_show.style.format({"Target":"{:.0f}","CMP":"{:.1f}","Upside %":"{:.1f}"}, na_rep="—"),
+                     use_container_width=True, hide_index=True)
     else:
         st.info("No multi-bagger / >12-month horizon recommendations currently loaded. Add them to SAMPLE_BROKER_RECS with horizon > 12.")
     
